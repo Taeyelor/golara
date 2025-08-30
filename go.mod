@@ -1,4 +1,4 @@
-module github.com/taeyelor/golara
+module github.com/Taeyelor/golara
 
 go 1.25.0
 
