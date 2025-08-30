@@ -29,18 +29,9 @@ func main() {
 	// Create GoLara application
 	app := framework.NewApplication()
 
-	// Connect to RabbitMQ
-	rabbitURL := app.Config.GetString("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
-	rabbitmq, err := rabbitmq.Connect(rabbitURL)
-	if err != nil {
-		log.Fatal("Failed to connect to RabbitMQ:", err)
-	}
-	defer rabbitmq.Close()
-
-	// Register RabbitMQ in service container
-	app.Singleton("rabbitmq", func() interface{} {
-		return rabbitmq
-	})
+	// Register RabbitMQ using unified configuration
+	// This will automatically load from app.Config which includes .env variables
+	rabbitmq.RegisterRabbitMQFromEnv(app)
 
 	// Setup routes for API endpoints
 	setupRoutes(app)
@@ -50,12 +41,10 @@ func main() {
 	defer cancel()
 
 	// Start email processor
-	go startEmailProcessor(ctx, rabbitmq)
+	go startEmailProcessor(ctx, app)
 
 	// Start notification processor
-	go startNotificationProcessor(ctx, rabbitmq)
-
-	// Start web server
+	go startNotificationProcessor(ctx, app) // Start web server
 	go func() {
 		log.Println("Starting web server on :8080")
 		if err := app.Run(":8080"); err != nil {
@@ -78,7 +67,11 @@ func setupRoutes(app *framework.Application) {
 
 	// Send email via queue
 	api.POST("/send-email", func(c *routing.Context) {
-		rabbit := app.Resolve("rabbitmq").(*rabbitmq.RabbitMQ)
+		rabbit := rabbitmq.GetRabbitMQ(app)
+		if rabbit == nil {
+			c.JSON(503, map[string]string{"error": "RabbitMQ service not available"})
+			return
+		}
 
 		var emailData EmailJob
 		if err := c.Bind(&emailData); err != nil {
@@ -97,7 +90,11 @@ func setupRoutes(app *framework.Application) {
 
 	// Send notification via queue
 	api.POST("/send-notification", func(c *routing.Context) {
-		rabbit := app.Resolve("rabbitmq").(*rabbitmq.RabbitMQ)
+		rabbit := rabbitmq.GetRabbitMQ(app)
+		if rabbit == nil {
+			c.JSON(503, map[string]string{"error": "RabbitMQ service not available"})
+			return
+		}
 
 		var notificationData NotificationJob
 		if err := c.Bind(&notificationData); err != nil {
@@ -116,7 +113,11 @@ func setupRoutes(app *framework.Application) {
 
 	// Queue stats
 	api.GET("/queue-stats", func(c *routing.Context) {
-		rabbit := app.Resolve("rabbitmq").(*rabbitmq.RabbitMQ)
+		rabbit := rabbitmq.GetRabbitMQ(app)
+		if rabbit == nil {
+			c.JSON(503, map[string]string{"error": "RabbitMQ service not available"})
+			return
+		}
 
 		stats := rabbit.Stats()
 
@@ -144,25 +145,29 @@ func setupRoutes(app *framework.Application) {
 
 	// Health check
 	api.GET("/health", func(c *routing.Context) {
-		rabbit := app.Resolve("rabbitmq").(*rabbitmq.RabbitMQ)
+		// Use the built-in health check helper
+		health := rabbitmq.QueueHealthCheck(app)
 
-		if err := rabbit.Health(); err != nil {
-			c.JSON(503, map[string]interface{}{
-				"status":   "error",
-				"rabbitmq": "disconnected",
-				"error":    err.Error(),
-			})
+		if health["status"] == "error" {
+			c.JSON(503, health)
 			return
 		}
 
 		c.JSON(200, map[string]interface{}{
 			"status":   "ok",
 			"rabbitmq": "connected",
+			"stats":    health["stats"],
 		})
 	})
 }
 
-func startEmailProcessor(ctx context.Context, rabbit *rabbitmq.RabbitMQ) {
+func startEmailProcessor(ctx context.Context, app *framework.Application) {
+	rabbit := rabbitmq.GetRabbitMQ(app)
+	if rabbit == nil {
+		log.Println("RabbitMQ service not available, skipping email processor")
+		return
+	}
+
 	log.Println("Starting email processor...")
 
 	// Create consumer with middleware
@@ -193,7 +198,13 @@ func startEmailProcessor(ctx context.Context, rabbit *rabbitmq.RabbitMQ) {
 	}
 }
 
-func startNotificationProcessor(ctx context.Context, rabbit *rabbitmq.RabbitMQ) {
+func startNotificationProcessor(ctx context.Context, app *framework.Application) {
+	rabbit := rabbitmq.GetRabbitMQ(app)
+	if rabbit == nil {
+		log.Println("RabbitMQ service not available, skipping notification processor")
+		return
+	}
+
 	log.Println("Starting notification processor...")
 
 	// Simple queue listener with workers

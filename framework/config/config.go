@@ -45,6 +45,14 @@ func (c *Config) loadDefaults() {
 			"maxPoolSize": 10,
 			"timeout":     "5s",
 		},
+		"rabbitmq.url":                   "amqp://guest:guest@localhost:5672/",
+		"rabbitmq.reconnect_delay":       "5s",
+		"rabbitmq.reconnect_attempts":    10,
+		"rabbitmq.enable_heartbeat":      true,
+		"rabbitmq.heartbeat_interval":    "10s",
+		"rabbitmq.channel_pool_size":     10,
+		"rabbitmq.auto_declare_queues":   true,
+		"rabbitmq.auto_declare_exchange": true,
 	}
 
 	for key, value := range defaults {
@@ -55,15 +63,28 @@ func (c *Config) loadDefaults() {
 // loadFromEnv loads configuration from environment variables
 func (c *Config) loadFromEnv() {
 	envMappings := map[string]string{
-		"APP_NAME":         "app.name",
-		"APP_ENV":          "app.env",
-		"APP_DEBUG":        "app.debug",
-		"APP_PORT":         "app.port",
-		"APP_KEY":          "app.key",
+		// App configuration
+		"APP_NAME":  "app.name",
+		"APP_ENV":   "app.env",
+		"APP_DEBUG": "app.debug",
+		"APP_PORT":  "app.port",
+		"APP_KEY":   "app.key",
+
+		// Database configuration
 		"DB_CONNECTION":    "database.default",
 		"MONGODB_URI":      "database.connections.mongodb.uri",
 		"DB_DATABASE":      "database.connections.mongodb.database",
 		"MONGODB_DATABASE": "database.connections.mongodb.database",
+
+		// RabbitMQ configuration
+		"RABBITMQ_URL":                   "rabbitmq.url",
+		"RABBITMQ_RECONNECT_DELAY":       "rabbitmq.reconnect_delay",
+		"RABBITMQ_RECONNECT_ATTEMPTS":    "rabbitmq.reconnect_attempts",
+		"RABBITMQ_ENABLE_HEARTBEAT":      "rabbitmq.enable_heartbeat",
+		"RABBITMQ_HEARTBEAT_INTERVAL":    "rabbitmq.heartbeat_interval",
+		"RABBITMQ_CHANNEL_POOL_SIZE":     "rabbitmq.channel_pool_size",
+		"RABBITMQ_AUTO_DECLARE_QUEUES":   "rabbitmq.auto_declare_queues",
+		"RABBITMQ_AUTO_DECLARE_EXCHANGE": "rabbitmq.auto_declare_exchange",
 	}
 
 	for envKey, configKey := range envMappings {
@@ -302,5 +323,42 @@ func (c *Config) copyMap(src, dst map[string]interface{}) {
 		} else {
 			dst[key] = value
 		}
+	}
+}
+
+// GetDatabaseConfig returns database configuration
+func (c *Config) GetDatabaseConfig() map[string]interface{} {
+	return map[string]interface{}{
+		"default": c.GetString("database.default"),
+		"mongodb": map[string]interface{}{
+			"uri":      c.GetString("database.connections.mongodb.uri"),
+			"database": c.GetString("database.connections.mongodb.database"),
+			"options":  c.Get("database.connections.mongodb.options"),
+		},
+	}
+}
+
+// GetRabbitMQConfig returns RabbitMQ configuration
+func (c *Config) GetRabbitMQConfig() map[string]interface{} {
+	return map[string]interface{}{
+		"url":                   c.GetString("rabbitmq.url"),
+		"reconnect_delay":       c.GetString("rabbitmq.reconnect_delay"),
+		"reconnect_attempts":    c.GetInt("rabbitmq.reconnect_attempts"),
+		"enable_heartbeat":      c.GetBool("rabbitmq.enable_heartbeat"),
+		"heartbeat_interval":    c.GetString("rabbitmq.heartbeat_interval"),
+		"channel_pool_size":     c.GetInt("rabbitmq.channel_pool_size"),
+		"auto_declare_queues":   c.GetBool("rabbitmq.auto_declare_queues"),
+		"auto_declare_exchange": c.GetBool("rabbitmq.auto_declare_exchange"),
+	}
+}
+
+// GetAppConfig returns application configuration
+func (c *Config) GetAppConfig() map[string]interface{} {
+	return map[string]interface{}{
+		"name":  c.GetString("app.name"),
+		"env":   c.GetString("app.env"),
+		"debug": c.GetBool("app.debug"),
+		"port":  c.GetString("app.port"),
+		"key":   c.GetString("app.key"),
 	}
 }

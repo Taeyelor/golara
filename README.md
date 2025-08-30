@@ -126,17 +126,12 @@ app.Use(customMiddleware)
 ```go
 import "github.com/taeyelor/golara/framework/rabbitmq"
 
-// Connect to RabbitMQ
-rabbit, err := rabbitmq.Connect("amqp://guest:guest@localhost:5672/")
-if err != nil {
-    log.Fatal(err)
-}
-defer rabbit.Close()
+// Register RabbitMQ using unified configuration
+app := framework.NewApplication()
+rabbitmq.RegisterRabbitMQFromEnv(app)
 
-// Register in service container
-app.Singleton("rabbitmq", func() interface{} {
-    return rabbit
-})
+// Use RabbitMQ service
+rabbit := rabbitmq.GetRabbitMQ(app)
 ```
 
 ### Simple Queue Operations
@@ -267,15 +262,21 @@ db.NewQueryBuilder().
 
 ### Environment Variables
 
-Create a `.env` file or set environment variables:
+Create a `.env` file:
 
 ```env
+# Application
 APP_NAME=MyApp
 APP_ENV=production
 APP_PORT=:8080
-DB_CONNECTION=mongodb
+
+# MongoDB
 MONGODB_URI=mongodb://localhost:27017
 MONGODB_DATABASE=myapp
+
+# RabbitMQ
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+RABBITMQ_AUTO_DECLARE_QUEUES=true
 ```
 
 ### Using Configuration
@@ -283,10 +284,14 @@ MONGODB_DATABASE=myapp
 ```go
 app := framework.NewApplication()
 
-// Get configuration values
+// Configuration is automatically loaded from .env and defaults
 appName := app.Config.GetString("app.name", "DefaultApp")
 debug := app.Config.GetBool("app.debug", false)
 port := app.Config.GetString("app.port", ":8080")
+
+// Get configuration groups
+appConfig := app.Config.GetAppConfig()
+rabbitConfig := app.Config.GetRabbitMQConfig()
 ```
 
 ## Views

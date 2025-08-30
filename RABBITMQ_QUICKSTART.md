@@ -49,7 +49,8 @@ import (
 func main() {
     app := framework.NewApplication()
     
-    // Register RabbitMQ service
+    // Register RabbitMQ using unified configuration
+    // This automatically loads from .env and defaults
     rabbitmq.RegisterRabbitMQFromEnv(app)
     
     // Your routes
@@ -66,18 +67,24 @@ func main() {
 ### Environment Configuration (.env)
 
 ```env
+# Application
+APP_NAME=MyGoLaraApp
+APP_PORT=:8080
+
+# RabbitMQ (all optional - has sensible defaults)
 RABBITMQ_URL=amqp://admin:password@localhost:5672/
 RABBITMQ_AUTO_DECLARE_QUEUES=true
 RABBITMQ_AUTO_DECLARE_EXCHANGE=true
+RABBITMQ_CHANNEL_POOL_SIZE=10
 ```
 
 ## 3. Queue Jobs in Controllers
 
 ```go
 func sendEmailHandler(c *routing.Context) {
-    rabbit := rabbitmq.GetRabbitMQ(c.App)
+    rabbit := rabbitmq.GetRabbitMQ(app)
     if rabbit == nil {
-        c.JSON(500, map[string]string{"error": "RabbitMQ not available"})
+        c.JSON(503, map[string]string{"error": "RabbitMQ not available"})
         return
     }
     
