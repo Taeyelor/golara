@@ -119,6 +119,67 @@ func customMiddleware(next http.Handler) http.Handler {
 app.Use(customMiddleware)
 ```
 
+## RabbitMQ Integration
+
+### Connection and Basic Usage
+
+```go
+import "github.com/taeyelor/golara/framework/rabbitmq"
+
+// Connect to RabbitMQ
+rabbit, err := rabbitmq.Connect("amqp://guest:guest@localhost:5672/")
+if err != nil {
+    log.Fatal(err)
+}
+defer rabbit.Close()
+
+// Register in service container
+app.Singleton("rabbitmq", func() interface{} {
+    return rabbit
+})
+```
+
+### Simple Queue Operations
+
+```go
+// Push job to queue
+err := rabbit.PushJob("emails", "send_welcome", map[string]interface{}{
+    "email": "user@example.com",
+    "name":  "John Doe",
+})
+
+// Listen for jobs with multiple workers
+ctx := context.Background()
+handlers := map[string]rabbitmq.MessageHandler{
+    "send_welcome": func(delivery *rabbitmq.Delivery) error {
+        var job rabbitmq.Job
+        delivery.JSON(&job)
+        log.Printf("Processing: %+v", job.Payload)
+        return nil
+    },
+}
+
+err = rabbit.ListenForJobs(ctx, "emails", handlers)
+```
+
+### Consumer with Middleware
+
+```go
+consumer, err := rabbit.CreateConsumer(&rabbitmq.ConsumerConfig{
+    Queue:       "processing",
+    Concurrency: 5,
+})
+
+// Add middleware
+consumer.Use(rabbitmq.WithLogging())
+consumer.Use(rabbitmq.WithRetry(3, 5*time.Second))
+consumer.Use(rabbitmq.WithTimeout(30*time.Second))
+
+// Handle messages
+consumer.HandleAll(processMessage)
+consumer.Start(ctx)
+```
+
 ## MongoDB ODM
 
 ### Connection
