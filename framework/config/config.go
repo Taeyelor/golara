@@ -33,20 +33,18 @@ func NewConfig() *Config {
 // loadDefaults sets default configuration values
 func (c *Config) loadDefaults() {
 	defaults := map[string]interface{}{
-		"app.name":                             "GoLara",
-		"app.env":                              "local",
-		"app.debug":                            true,
-		"app.port":                             ":8080",
-		"app.key":                              "",
-		"database.default":                     "mysql",
-		"database.connections.mysql.driver":    "mysql",
-		"database.connections.mysql.host":      "127.0.0.1",
-		"database.connections.mysql.port":      "3306",
-		"database.connections.mysql.database":  "",
-		"database.connections.mysql.username":  "",
-		"database.connections.mysql.password":  "",
-		"database.connections.sqlite.driver":   "sqlite3",
-		"database.connections.sqlite.database": "database.sqlite",
+		"app.name":                              "GoLara",
+		"app.env":                               "local",
+		"app.debug":                             true,
+		"app.port":                              ":8080",
+		"app.key":                               "",
+		"database.default":                      "mongodb",
+		"database.connections.mongodb.uri":      "mongodb://localhost:27017",
+		"database.connections.mongodb.database": "golara",
+		"database.connections.mongodb.options": map[string]interface{}{
+			"maxPoolSize": 10,
+			"timeout":     "5s",
+		},
 	}
 
 	for key, value := range defaults {
@@ -57,17 +55,15 @@ func (c *Config) loadDefaults() {
 // loadFromEnv loads configuration from environment variables
 func (c *Config) loadFromEnv() {
 	envMappings := map[string]string{
-		"APP_NAME":      "app.name",
-		"APP_ENV":       "app.env",
-		"APP_DEBUG":     "app.debug",
-		"APP_PORT":      "app.port",
-		"APP_KEY":       "app.key",
-		"DB_CONNECTION": "database.default",
-		"DB_HOST":       "database.connections.mysql.host",
-		"DB_PORT":       "database.connections.mysql.port",
-		"DB_DATABASE":   "database.connections.mysql.database",
-		"DB_USERNAME":   "database.connections.mysql.username",
-		"DB_PASSWORD":   "database.connections.mysql.password",
+		"APP_NAME":         "app.name",
+		"APP_ENV":          "app.env",
+		"APP_DEBUG":        "app.debug",
+		"APP_PORT":         "app.port",
+		"APP_KEY":          "app.key",
+		"DB_CONNECTION":    "database.default",
+		"MONGODB_URI":      "database.connections.mongodb.uri",
+		"DB_DATABASE":      "database.connections.mongodb.database",
+		"MONGODB_DATABASE": "database.connections.mongodb.database",
 	}
 
 	for envKey, configKey := range envMappings {

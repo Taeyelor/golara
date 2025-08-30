@@ -1,6 +1,6 @@
 # GoLara Framework
 
-A simple, Laravel-inspired web framework for Go that provides an elegant and developer-friendly experience.
+A simple, Laravel-inspired web framework for Go that provides an elegant and developer-friendly experience with **MongoDB** as the primary database.
 
 ## Features
 
@@ -8,7 +8,7 @@ A simple, Laravel-inspired web framework for Go that provides an elegant and dev
 - 🔧 **Middleware Support** - Easy middleware chain management
 - 🏗️ **Dependency Injection** - Built-in service container
 - ⚙️ **Configuration Management** - Environment-based configuration
-- 🗄️ **Simple ORM** - Laravel-inspired database query builder
+- 🗄️ **MongoDB ODM** - Laravel-inspired query builder for MongoDB
 - 🎨 **Template Engine** - Built-in view rendering with template functions
 - 🛡️ **Built-in Middleware** - Logging, CORS, Recovery, and Auth middleware
 - 🔄 **Graceful Shutdown** - Proper server shutdown handling
@@ -119,14 +119,14 @@ func customMiddleware(next http.Handler) http.Handler {
 app.Use(customMiddleware)
 ```
 
-## Database
+## MongoDB ODM
 
 ### Connection
 
 ```go
 import "github.com/taeyelor/golara/framework/database"
 
-db, err := database.Connect("mysql", "user:password@/dbname")
+db, err := database.Connect("mongodb://localhost:27017", "myapp")
 if err != nil {
     log.Fatal(err)
 }
@@ -135,36 +135,71 @@ if err != nil {
 ### Query Builder
 
 ```go
+import "go.mongodb.org/mongo-driver/bson"
+
 // Select
 var users []User
 err := db.NewQueryBuilder().
-    Table("users").
+    Collection("users").
     Where("active", "=", true).
     OrderBy("created_at", "DESC").
     Limit(10).
     Get(&users)
 
 // Insert
-id, err := db.NewQueryBuilder().
-    Table("users").
-    Insert(map[string]interface{}{
-        "name":  "John Doe",
-        "email": "john@example.com",
+userID, err := db.NewQueryBuilder().
+    Collection("users").
+    Insert(User{
+        Name:  "John Doe",
+        Email: "john@example.com",
     })
 
 // Update
-affected, err := db.NewQueryBuilder().
-    Table("users").
-    Where("id", "=", 1).
-    Update(map[string]interface{}{
+result, err := db.NewQueryBuilder().
+    Collection("users").
+    Where("_id", "=", objectID).
+    UpdateOne(bson.M{"$set": bson.M{
         "name": "Jane Doe",
-    })
+    }})
 
 // Delete
-affected, err := db.NewQueryBuilder().
-    Table("users").
-    Where("id", "=", 1).
-    Delete()
+result, err := db.NewQueryBuilder().
+    Collection("users").
+    Where("_id", "=", objectID).
+    DeleteOne()
+
+// Aggregation
+pipeline := []bson.M{
+    {"$match": bson.M{"status": "active"}},
+    {"$group": bson.M{"_id": "$department", "count": bson.M{"$sum": 1}}},
+}
+var results []bson.M
+err := db.NewQueryBuilder().
+    Collection("users").
+    Aggregate(pipeline, &results)
+```
+
+### MongoDB-specific Operations
+
+```go
+// MongoDB operators
+db.NewQueryBuilder().
+    Collection("users").
+    Where("age", ">", 18).              // Greater than
+    Where("name", "like", "John").       // Regex search
+    WhereIn("status", []interface{}{"active", "pending"}).  // $in operator
+    WhereExists("profile.avatar").       // Field exists
+    Get(&users)
+
+// Advanced queries
+db.NewQueryBuilder().
+    Collection("posts").
+    Where("tags", "in", []interface{}{"go", "mongodb"}).
+    Where("published", "=", true).
+    OrderBy("views", "DESC").
+    Skip(20).
+    Limit(10).
+    Get(&posts)
 ```
 
 ## Configuration
@@ -177,11 +212,9 @@ Create a `.env` file or set environment variables:
 APP_NAME=MyApp
 APP_ENV=production
 APP_PORT=:8080
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_DATABASE=myapp
-DB_USERNAME=user
-DB_PASSWORD=password
+DB_CONNECTION=mongodb
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=myapp
 ```
 
 ### Using Configuration
