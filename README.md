@@ -6,12 +6,14 @@ A simple, Laravel-inspired web framework for Go that provides an elegant and dev
 
 - 🚀 **Simple Routing** - Express-style routing with parameter support
 - 🔧 **Middleware Support** - Easy middleware chain management
-- 🏗️ **Dependency Injection** - Built-in service container
+- 🏗️ **Dependency Injection** - Built-in service container with auto-registration
 - ⚙️ **Configuration Management** - Environment-based configuration
 - 🗄️ **MongoDB ODM** - Laravel-inspired query builder for MongoDB
+- 🐰 **RabbitMQ Integration** - Simple message queue integration
 - 🎨 **Template Engine** - Built-in view rendering with template functions
 - 🛡️ **Built-in Middleware** - Logging, CORS, Recovery, and Auth middleware
 - 🔄 **Graceful Shutdown** - Proper server shutdown handling
+- ⚡ **Auto-Registration** - Core services registered automatically on bootstrap
 
 ## Quick Start
 
@@ -354,6 +356,35 @@ app.Singleton("database", func() interface{} {
 
 // Register instance
 app.Container.Instance("config", myConfig)
+```
+
+### Auto-Registration
+
+GoLara automatically registers core services when calling `framework.NewApplication()`:
+
+```go
+app := framework.NewApplication()
+
+// Automatically registered services:
+config := app.Resolve("config")   // Configuration service
+router := app.Resolve("router")   // Router service  
+db := app.Resolve("db")           // MongoDB connection (if configured)
+rabbit := app.Resolve("rabbitmq") // RabbitMQ placeholder (if enabled)
+```
+
+**Auto-registered services:**
+- **config** - Unified configuration management
+- **router** - HTTP router with middleware support
+- **db** - MongoDB database connection (lazy-loaded)
+- **rabbitmq** - RabbitMQ service placeholder (if `rabbitmq.enabled=true`)
+
+For RabbitMQ, use the registration helper to initialize the actual service:
+```go
+import "github.com/taeyelor/golara/framework/rabbitmq"
+
+if app.Config.Get("rabbitmq.enabled", false).(bool) {
+    rabbitmq.RegisterRabbitMQ(app, nil) // Uses config from app.Config
+}
 ```
 
 ### Service Resolution

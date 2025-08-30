@@ -11,10 +11,11 @@ import (
 
 	"github.com/taeyelor/golara/framework/config"
 	"github.com/taeyelor/golara/framework/container"
+	"github.com/taeyelor/golara/framework/database"
 	"github.com/taeyelor/golara/framework/routing"
 )
 
-// Application represents the main application instance
+// Application is the main application structure
 type Application struct {
 	Router    *routing.Router
 	Container *container.Container
@@ -38,6 +39,7 @@ func NewApplication() *Application {
 
 // registerCoreServices registers the core framework services
 func (app *Application) registerCoreServices() {
+	// Register core framework services
 	app.Container.Singleton("config", func() interface{} {
 		return app.Config
 	})
@@ -45,6 +47,26 @@ func (app *Application) registerCoreServices() {
 	app.Container.Singleton("router", func() interface{} {
 		return app.Router
 	})
+
+	// Auto-register database service (MongoDB ODM)
+	app.Container.Singleton("db", func() interface{} {
+		// Get database config
+		uri := app.Config.Get("database.connections.mongodb.uri", "mongodb://localhost:27017").(string)
+		dbName := app.Config.Get("database.connections.mongodb.database", "golara").(string)
+
+		db, err := database.Connect(uri, dbName)
+		if err != nil {
+			log.Printf("Failed to connect to database: %v", err)
+			return nil
+		}
+		return db
+	})
+
+	// Auto-register RabbitMQ service if enabled
+	if app.Config.Get("rabbitmq.enabled", false).(bool) {
+		// Register RabbitMQ factory function that will be lazy-loaded
+		app.Container.Singleton("rabbitmq", app.createRabbitMQFactory())
+	}
 }
 
 // Run starts the application server
@@ -125,4 +147,19 @@ func (app *Application) PATCH(path string, handler interface{}) {
 // Use registers global middleware
 func (app *Application) Use(middleware func(http.Handler) http.Handler) {
 	app.Router.Use(middleware)
+}
+
+// createRabbitMQFactory creates a factory function for RabbitMQ service
+// This avoids import cycles by using reflection and dynamic loading
+func (app *Application) createRabbitMQFactory() func() interface{} {
+	return func() interface{} {
+		// Note: This is a placeholder implementation
+		// The actual RabbitMQ instance should be created by the developer
+		// using the provided registration helpers in the rabbitmq package
+		log.Println("RabbitMQ service placeholder registered. Use rabbitmq.RegisterRabbitMQ() to initialize.")
+		return map[string]interface{}{
+			"type":    "placeholder",
+			"message": "Use rabbitmq.RegisterRabbitMQ() to initialize RabbitMQ service",
+		}
+	}
 }

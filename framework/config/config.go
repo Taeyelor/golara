@@ -45,6 +45,7 @@ func (c *Config) loadDefaults() {
 			"maxPoolSize": 10,
 			"timeout":     "5s",
 		},
+		"rabbitmq.enabled":               true,
 		"rabbitmq.url":                   "amqp://guest:guest@localhost:5672/",
 		"rabbitmq.reconnect_delay":       "5s",
 		"rabbitmq.reconnect_attempts":    10,
@@ -77,6 +78,7 @@ func (c *Config) loadFromEnv() {
 		"MONGODB_DATABASE": "database.connections.mongodb.database",
 
 		// RabbitMQ configuration
+		"RABBITMQ_ENABLED":               "rabbitmq.enabled",
 		"RABBITMQ_URL":                   "rabbitmq.url",
 		"RABBITMQ_RECONNECT_DELAY":       "rabbitmq.reconnect_delay",
 		"RABBITMQ_RECONNECT_ATTEMPTS":    "rabbitmq.reconnect_attempts",
